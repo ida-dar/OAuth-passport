@@ -3,27 +3,38 @@ const cors = require('cors');
 const path = require('path');
 const hbs = require('express-handlebars');
 
+const passport = require('passport');
+const passportConfig = require('./config/passport');
+const session = require('express-session');
+
 const app = express();
 
+// set handlebars as view engine
 app.engine('hbs', hbs({ extname: 'hbs', layoutsDir: './layouts', defaultLayout: 'main' }));
 app.set('view engine', '.hbs');
+
+app.use(session({ secret: 'anything' })); // starts the session handling mechanism in express. The 'secret' parameter is used to encode it more uniquely as it is used in generating and reading session info
+app.use(passport.initialize()); // inits passport
+app.use(passport.session()); // starts the session after user's login
 
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, '/public')));
 
+const isLogged = (req, res, next) => {
+  if(!req.user) res.redirect('/user/no-permission');
+  else next();
+};
+
+app.use(['/user/profile?', '/user/logged'], isLogged);
+
 app.get('/', (req, res) => {
   res.render('index');
 });
 
-app.get('/user/logged', (req, res) => {
-  res.render('logged');
-});
-
-app.get('/user/no-permission', (req, res) => {
-  res.render('noPermission');
-});
+app.use('/auth', require('./routes/auth.routes'));
+app.use('/user', require('./routes/user.routes'));
 
 app.use('/', (req, res) => {
   res.status(404).render('notFound');
